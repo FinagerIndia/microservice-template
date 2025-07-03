@@ -1,0 +1,81 @@
+{
+	"name": "@FinagerIndia/microservice-template",
+	"version": "1.0.0",
+	"description": "Express microservice template",
+	"main": "dist/server.js",
+	"bin": "./bin/cli.js",
+	"engines": {
+		"node": ">=20.18.1",
+		"yarn": "please-use-pnpm",
+		"npm": "please-use-pnpm",
+		"pnpm": ">=9.0.0"
+	},
+	"scripts": {
+		"dev": "cross-env nodemon src/server.ts",
+		"start": "cross-env node dist/server.js",
+		"prepare": "husky",
+		"build": "rm -rf ./dist && tsc && tsc-alias",
+		"clean:install": "rm -rf ./node_modules && rm -r package-lock.json && pnpm i",
+		"clean:find-unused": "knip",
+		"lint": "eslint src/**/*.ts",
+		"lint:fix": "eslint src/**/*.ts --fix",
+		"format": "prettier --write .",
+		"prestage": "pnpm run format && pnpm run lint && pnpm run build && pnpm run clean:find-unused"
+	},
+	"knip": {
+		"entry": [
+			"src/server.ts"
+		],
+		"project": [
+			"**/*.ts"
+		]
+	},
+	"keywords": [
+		"starter",
+		"template",
+		"express",
+		"nodejs",
+		"microservice"
+	],
+	"author": "@dEvAshirvad",
+	"license": "MIT",
+	"packageManager": "pnpm@10.11.0",
+	"dependencies": {
+		"compression": "^1.8.0",
+		"cookie-parser": "^1.4.7",
+		"cors": "^2.8.5",
+		"date-fns": "^4.1.0",
+		"dotenv": "^17.0.1",
+		"dotenv-expand": "^12.0.2",
+		"express": "^5.1.0",
+		"helmet": "^8.1.0",
+		"ioredis": "^5.6.1",
+		"jose": "^6.0.11",
+		"jsonwebtoken": "^9.0.2",
+		"log4js": "^6.9.1",
+		"mongodb": "^6.17.0",
+		"mongoose": "^8.16.1",
+		"zod": "^3.25.71"
+	},
+	"devDependencies": {
+		"@antfu/eslint-config": "^4.16.2",
+		"@commitlint/cli": "^19.8.1",
+		"@commitlint/config-conventional": "^19.8.1",
+		"@types/compression": "^1.8.1",
+		"@types/cookie-parser": "^1.4.9",
+		"@types/cors": "^2.8.19",
+		"@types/express": "^5.0.3",
+		"chalk": "^5.4.1",
+		"cross-env": "^7.0.3",
+		"eslint": "^9.30.1",
+		"eslint-plugin-format": "^1.0.1",
+		"husky": "^9.1.7",
+		"knip": "^5.61.3",
+		"nodemon": "^3.1.10",
+		"prettier": "^3.6.2",
+		"ts-node": "^10.9.2",
+		"tsc-alias": "^1.8.16",
+		"tsconfig-paths": "^4.2.0",
+		"typescript": "^5.8.3"
+	}
+}
