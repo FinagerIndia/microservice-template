@@ -15,14 +15,11 @@ export function errorHandler(
   }
 
   logger.error(error?.message);
-  Respond(
-    res,
-    {
-      success: false,
-      status: 'error',
-      title: 'Internal Server Error',
-      message: error?.message,
-    },
-    500
-  );
+
+  return res.status(500).json({
+    success: false,
+    status: 'error',
+    title: 'Internal Server Error',
+    message: error?.message,
+  });
 }

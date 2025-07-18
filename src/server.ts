@@ -1,4 +1,3 @@
-import express from 'express';
 import connectDB from '@/configs/db/mongodb';
 import logger from '@/configs/logger';
 import env from '@/configs/env';

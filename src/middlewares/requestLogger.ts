@@ -59,7 +59,12 @@ const requestLogger = (): RequestHandler => {
         chalk.cyan('│') +
           '  ' +
           chalk.bold(
-            '  Body: ' + chalk.yellow(JSON.stringify(req.body, null, 2))
+            '  Body: ' +
+              chalk.yellow(
+                req.headers['content-type']?.includes('multipart/form-data')
+                  ? '[Multipart form data - body logged after processing]'
+                  : JSON.stringify(req.body, null, 2)
+              )
           ),
         chalk.cyan(
           '├─────────────────────────────────────────────────────────────'

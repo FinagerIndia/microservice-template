@@ -1,8 +1,14 @@
+import { Session, User } from 'better-auth';
+
 declare global {
   namespace Express {
     interface Request {
-      session?: any;
-      user?: any;
+      session?: Session;
+      user?: User & {
+        role: string;
+        department: string;
+        departmentRole: string;
+      };
     }
   }
 }

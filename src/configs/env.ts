@@ -29,6 +29,13 @@ const EnvSchema = z.object({
   REDIS_PASSWORD: z.string().default('root'),
   COOKIE_DOMAIN: z.string().default('localhost'),
   BASE_URL: z.string(),
+  // File compression settings
+  ENABLE_FILE_COMPRESSION: z.coerce.boolean().default(true),
+  COMPRESSION_QUALITY: z.coerce.number().min(0).max(100).default(85),
+  COMPRESSION_THRESHOLD_SIZE: z.coerce.number().default(300000), // 300KB
+  COMPRESS_IMAGE_TYPES: z.coerce.boolean().default(true),
+  COMPRESS_PDF_TYPES: z.coerce.boolean().default(false),
+  COMPRESS_TEXT_TYPES: z.coerce.boolean().default(true),
 });
 
 export type env = z.infer<typeof EnvSchema>;
