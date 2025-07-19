@@ -7,6 +7,7 @@ import { MemberService } from '../members/members.service';
 import APIError from '@/lib/errors/APIError';
 import { KpiAuditLogService } from '../kpi_audt_logs/kpi_audit_logs.services';
 import { db } from '@/configs/db/mongodb';
+import { format } from 'date-fns';
 
 interface ScoringRule {
   min?: number;
@@ -984,28 +985,116 @@ export class KpiEntryService {
     };
   }
 
-  static async getKpiEntriesStatisticsByDepartmentAndRole(
+  static async getKpiEntriesStatisticsByDepartmentAndRoleWithMonthAndYear(
     page: string,
     limit: string,
-    templateId: string,
-    department: string,
-    role: string
+    templateId?: string,
+    department?: string,
+    role?: string,
+    month?: string,
+    year?: string
   ) {
     try {
       const pageNum = Number(page) || 1;
       const limitNum = Number(limit) || 10;
-      // Get All members in the department
+
+      // Handle month and year calculation properly
+      let monthNum: number;
+      let yearNum: number;
+
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // 1-12
+      const currentYear = currentDate.getFullYear();
+
+      if (month) {
+        const monthValue = Number(month);
+
+        if (monthValue < 0) {
+          // Handle negative months (previous months)
+          const monthsToSubtract = Math.abs(monthValue);
+          const totalMonths = currentMonth - monthsToSubtract;
+
+          if (totalMonths <= 0) {
+            // Need to go back to previous year(s)
+            const yearsToSubtract = Math.ceil(Math.abs(totalMonths) / 12);
+            yearNum = currentYear - yearsToSubtract;
+            monthNum = 12 + (totalMonths % 12);
+            if (monthNum === 0) monthNum = 12;
+          } else {
+            yearNum = currentYear;
+            monthNum = totalMonths;
+          }
+        } else {
+          // Positive month value
+          monthNum = monthValue;
+          yearNum = year ? Number(year) : currentYear;
+        }
+      } else {
+        monthNum = currentMonth;
+        yearNum = year ? Number(year) : currentYear;
+      }
+
+      // Handle year calculation if provided
+      if (year) {
+        const yearValue = Number(year);
+        if (yearValue < 0) {
+          // Handle negative years (previous years)
+          yearNum = currentYear + yearValue; // yearValue is negative, so this subtracts
+        } else {
+          yearNum = yearValue;
+        }
+      }
+
+      // Build member query based on provided parameters
+      const memberQuery: any = {};
+      if (department) memberQuery.department = department;
+      if (role) memberQuery.role = role;
+
+      // Get All members (filtered by department/role if provided, or all if not provided)
       const members = await MemberService.getMembers({
-        department,
-        role,
+        ...memberQuery,
         page: pageNum,
         limit: limitNum,
       });
-      // Get All KPI entries for the template
-      const kpiEntries = await KpiEntryModel.find({
-        kpiTemplateId: templateId,
-        createdFor: { $in: members.docs.map((m) => m.userId) },
-      }).lean();
+
+      // Filter out nodalOfficer roles after getting members
+      const filteredMembers = {
+        ...members,
+        docs: members.docs.filter(
+          (member: any) => !member.role.startsWith('nodalOfficer')
+        ),
+      };
+
+      // Build KPI entries query
+      const kpiEntriesQuery: any = {
+        createdFor: { $in: filteredMembers.docs.map((m) => m.userId) },
+        createdAt: {
+          $gte: new Date(yearNum, monthNum - 1, 1),
+          $lte: new Date(yearNum, monthNum, 0),
+        },
+      };
+
+      // Add template filter only if templateId is provided
+      if (templateId) {
+        kpiEntriesQuery.kpiTemplateId = templateId;
+      }
+
+      // Get All KPI entries
+      const kpiEntries = await KpiEntryModel.find(kpiEntriesQuery).lean();
+
+      // Check if there are any generated reports for previous months (negative month values)
+      if (month && Number(month) < 0) {
+        const generatedEntries = kpiEntries.filter(
+          (entry) => entry.status === 'generated'
+        );
+        if (generatedEntries.length === 0) {
+          throw new APIError({
+            STATUS: 404,
+            TITLE: 'No Generated Reports Found',
+            MESSAGE: `No generated KPI reports found for ${format(new Date(yearNum, monthNum - 1, 1), 'MMMM yyyy')}. Please generate reports first before viewing statistics.`,
+          });
+        }
+      }
 
       // Create a map of existing entries by member ID
       const entriesMap = new Map();
@@ -1028,9 +1117,11 @@ export class KpiEntryService {
       }[] = [];
 
       // Process all members
-      members.docs.forEach((member, index) => {
+      filteredMembers.docs.forEach((member, index) => {
         const entry = entriesMap.get(member.userId);
-        const totalScore = entry ? entry.totalScore : 0;
+        // Only show total score if status is 'generated', otherwise show 0
+        const totalScore =
+          entry && entry.status === 'generated' ? entry.totalScore : 0;
 
         rankings.push({
           memberId: member.userId,
@@ -1046,19 +1137,29 @@ export class KpiEntryService {
         });
       });
 
-      // Sort by total score (highest to lowest)
-      rankings.sort((a, b) => b.totalScore - a.totalScore);
+      // Sort by status priority and then by total score
+      rankings.sort((a, b) => {
+        // First, sort by status priority: generated > initiated > no-entry
+        const statusPriority: Record<string, number> = {
+          generated: 3,
+          initiated: 2,
+          'no-entry': 1,
+        };
 
-      // Assign rankings (handle ties)
-      let currentRank = 1;
-      let currentScore = rankings[0]?.totalScore;
+        const aPriority = statusPriority[a.status] || 0;
+        const bPriority = statusPriority[b.status] || 0;
 
-      rankings.forEach((ranking, index) => {
-        if (ranking.totalScore !== currentScore) {
-          currentRank = index + 1;
-          currentScore = ranking.totalScore;
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
         }
-        ranking.ranking = currentRank;
+
+        // If same status, sort by total score (highest to lowest)
+        return b.totalScore - a.totalScore;
+      });
+
+      // Assign rankings based on sorted order (simple sequential ranking)
+      rankings.forEach((ranking, index) => {
+        ranking.ranking = index + 1;
       });
 
       // Calculate statistics
@@ -1077,6 +1178,29 @@ export class KpiEntryService {
           ? rankings.filter((r) => r.hasEntry).slice(-1)[0]?.totalScore || 0
           : 0;
 
+      // Get all departments and roles (excluding collector-office)
+      const allMembers = await MemberService.getMembers({
+        page: 1,
+        limit: 10000, // Get all members to extract departments and roles
+      });
+
+      // Filter out collector-office and nodalOfficer roles
+      const filteredAllMembers = allMembers.docs.filter(
+        (member: any) =>
+          member.departmentSlug !== 'collector-office' &&
+          !member.role.startsWith('nodalOfficer')
+      );
+
+      // Extract unique departments and roles
+      const departments = [
+        ...new Set(
+          filteredAllMembers.map((member: any) => member.departmentSlug)
+        ),
+      ];
+      const roles = [
+        ...new Set(filteredAllMembers.map((member: any) => member.role)),
+      ];
+
       return {
         rankings,
         statistics: {
@@ -1087,6 +1211,15 @@ export class KpiEntryService {
           highestScore,
           lowestScore,
           completionRate: Math.round((membersWithEntries / totalMembers) * 100),
+        },
+        department: department || 'All Departments',
+        role: role || 'All Roles',
+        templateId: templateId || 'All Templates',
+        month: format(new Date(yearNum, monthNum - 1, 1), 'MMMM'),
+        year: format(new Date(yearNum, monthNum - 1, 1), 'yyyy'),
+        availableFilters: {
+          departments: departments.sort(),
+          roles: roles.sort(),
         },
         pagination: {
           page: pageNum,

@@ -44,10 +44,10 @@ const betterAuthConfig: BetterAuthOptions = {
   },
   trustedOrigins: [
     // Development
-    'exp://192.168.29.36:8081',
+    'exp://172.22.70.161:8081',
     'exp://localhost:8081',
     'http://localhost:8081',
-    'http://10.0.2.2:8081',
+    'http://172.22.70.161:8081',
     'http://localhost:3000',
     'http://localhost:3030',
   ],

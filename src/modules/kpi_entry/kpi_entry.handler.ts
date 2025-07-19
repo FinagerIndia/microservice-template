@@ -115,22 +115,18 @@ export class KpiEntryHandler {
     res: Response
   ) {
     try {
-      const { page, limit, templateId, department, role } = req.query;
-      if (!templateId || !department || !role) {
-        throw new APIError({
-          STATUS: 400,
-          TITLE: 'Bad Request',
-          MESSAGE: 'Template ID, department and role are required',
-        });
-      }
+      const { page, limit, templateId, department, role, month, year } =
+        req.query;
 
       const kpiEntriesStatistics =
-        await KpiEntryService.getKpiEntriesStatisticsByDepartmentAndRole(
+        await KpiEntryService.getKpiEntriesStatisticsByDepartmentAndRoleWithMonthAndYear(
           page as string,
           limit as string,
-          templateId as string,
-          department as string,
-          role as string
+          templateId as string | undefined,
+          department as string | undefined,
+          role as string | undefined,
+          month as string | undefined,
+          year as string | undefined
         );
       Respond(
         res,
