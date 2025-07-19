@@ -13,9 +13,9 @@ import { toNodeHandler } from 'better-auth/node';
 import { auth } from '@/lib/auth';
 import { sessionDeserializer } from '@/middlewares/sessionDeserializer';
 import requireUser from '@/middlewares/requireUser';
+import env from './env';
 
 const allowedOrigins = [
-  // Development
   'exp://192.168.29.36:8081',
   'exp://localhost:8081',
   'http://localhost:8081',
@@ -62,18 +62,25 @@ export default function createApp() {
       crossOriginOpenerPolicy: { policy: 'unsafe-none' },
     })
   );
-  app.use(
-    cors({
-      credentials: true,
-      origin: function (origin, callback) {
-        if (!origin || allowedOrigins.includes(origin)) {
-          callback(null, true);
-        } else {
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-    })
-  );
+  env.NODE_ENV === 'development'
+    ? app.use(
+        cors({
+          credentials: true,
+          origin: '*',
+        })
+      )
+    : app.use(
+        cors({
+          credentials: true,
+          origin: function (origin, callback) {
+            if (!origin || allowedOrigins.includes(origin)) {
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
+          },
+        })
+      );
   app.use(cookieParser());
   app.all('/api/auth/*splat', toNodeHandler(auth));
   app.use(express.json({ limit: '2048mb' }));

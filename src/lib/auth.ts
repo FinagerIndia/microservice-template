@@ -4,6 +4,7 @@ import { db } from '@/configs/db/mongodb';
 import { admin, createAuthMiddleware, openAPI } from 'better-auth/plugins';
 
 import { MemberService } from '@/modules/members/members.service';
+import env from '@/configs/env';
 
 const betterAuthConfig: BetterAuthOptions = {
   emailAndPassword: {
@@ -42,15 +43,10 @@ const betterAuthConfig: BetterAuthOptions = {
   advanced: {
     cookiePrefix: 'kpi-central',
   },
-  trustedOrigins: [
-    // Development
-    'exp://172.22.70.161:8081',
-    'exp://localhost:8081',
-    'http://localhost:8081',
-    'http://172.22.70.161:8081',
-    'http://localhost:3000',
-    'http://localhost:3030',
-  ],
+  trustedOrigins:
+    env.NODE_ENV === 'development' // TODO: Remove this after development
+      ? []
+      : [],
 };
 
 export const auth = betterAuth(betterAuthConfig);
